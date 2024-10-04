@@ -13,6 +13,7 @@ df['Temp_Cel'] = df['Temp_Cel'].str.replace(',', '.').astype(float)
 dados_por_hora = 'Plotar Dados por Hora'
 irradiancia_paines_inclinacao = 'Calcular Irradiância para\nPainéis com Inclinação'
 potencias_tensoes_correntes = 'Calcular Potências, Tensões e Correntes'
+info_painel = "Informações do Painel"
 sair = 'Sair'
 
 def main_menu():
@@ -21,10 +22,11 @@ def main_menu():
         [sg.Push(), sg.Button(dados_por_hora, size=(25, 3)), sg.Push()],
         [sg.Push(), sg.Button(irradiancia_paines_inclinacao, size=(25, 3)), sg.Push()],
         [sg.Push(), sg.Button(potencias_tensoes_correntes, size=(25, 3)), sg.Push()],
+        [sg.Push(), sg.Button(info_painel, size=(25, 3)), sg.Push()],
         [sg.Push(), sg.Button(sair, size=(25, 2)), sg.Push()]
     ]
 
-    window = sg.Window('Menu Principal', menu_layout, size=(400, 300))
+    window = sg.Window('Menu Principal', menu_layout, size=(400, 400))
 
     while True:
         event, values = window.read()
@@ -37,6 +39,9 @@ def main_menu():
             inclinação(window)
         elif event == potencias_tensoes_correntes:
             potencias_selection(window)
+        elif event == info_painel:
+            show_panel_info(window)
+
 
     window.close()
  
@@ -155,7 +160,7 @@ def potencias_selection(parent_window):
 
         # Atualiza o texto dos resultados
         resultados_texto = (
-            "Informações sobre o Sistema:\n\n"
+            "Informações sobre o controle:\n\n"
             f"Potência total máxima Rede: {pt_max:.2f}\n"
             f"Potência total mínima Rede: {pt_min:.2f}\n\n"
             f"Média da potência total Rede: {pt_media:.2f}\n"
@@ -192,7 +197,7 @@ def potencias_selection(parent_window):
 
                 # Atualiza o texto dos resultados
                 resultados_texto = (
-                    "Informações sobre o Sistema:\n\n"
+                    "Informações sobre o controle:\n\n"
                     f"Potência total máxima Rede: {pt_max:.2f}\n"
                     f"Potência total mínima Rede: {pt_min:.2f}\n\n"
                     f"Média da potência total Rede: {pt_media:.2f}\n"
@@ -211,6 +216,21 @@ def potencias_selection(parent_window):
 
     # Fechar a janela
     window.close()
+
+# Função para mostrar a imagem do painel
+def show_panel_info(parent_window):
+    layout = [
+        [sg.Image(filename='panel_info.png')],
+        [sg.Button('Voltar')]
+    ]
+    info_window = sg.Window(info_painel, layout, modal=True)
+
+    while True:
+        event, values = info_window.read()
+        if event == sg.WINDOW_CLOSED or event == 'Voltar':
+            info_window.close()
+            parent_window.un_hide()
+            break
 
  
 main_menu()
