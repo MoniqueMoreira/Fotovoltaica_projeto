@@ -1,4 +1,3 @@
-# funcao.py
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -60,66 +59,137 @@ def plot_hourly_data(selected_hour, selected_minute, canvas):
         draw_figure(canvas, fig)
         plt.close(fig)
 
-# Função para plotar dados da segunda funcionalidade
-def plot_custom_values(reactive_power, phase_angle, amplitude, canvas):
-    Vp = 220 * np.sqrt(2)
-    Pm = 1000
+# Funções de cálculo
+def deg_to_rad(degrees):
+    return degrees * np.pi / 180
+
+def rad_to_deg(radians):
+    return radians * 180 / np.pi
+    
+def calculate_solar_parameters(data_hora, irradiancia_global, beta, gamma_p, lat, long_local, long_meridiano):
+    dia = data_hora.timetuple().tm_yday
+    B = (360 / 365) * (dia - 81)
+    EoT = 9.87 * np.sin(np.radians(2 * B)) - 7.53 * np.cos(np.radians(B)) - 1.5 * np.sin(np.radians(B))
+    EoT /= 60
+    
+    hora_local = data_hora.hour + data_hora.minute / 60
+    hora_solar = hora_local - ((long_local - long_meridiano) / 15) + EoT
+    
+    declinacao_solar = 23.45 * np.sin(np.radians(360 * (284 + dia) / 365))
+    omega = 15 * (hora_solar - 12)
+    
+    theta_z = np.degrees(np.arccos(np.sin(np.radians(lat)) * np.sin(np.radians(declinacao_solar)) +
+                                    np.cos(np.radians(lat)) * np.cos(np.radians(declinacao_solar)) * np.cos(np.radians(omega))))
+    
+    gamma_solar = np.degrees(np.arctan2(np.sin(np.radians(omega)),
+                                        (np.cos(np.radians(omega)) * np.sin(np.radians(lat)) -
+                                         np.tan(np.radians(declinacao_solar)) * np.cos(np.radians(lat)))))
+
+
+    theta_i = np.degrees(np.arccos(np.sin(np.radians(theta_z)) * np.cos(np.radians(gamma_p - gamma_solar)) * np.sin(np.radians(beta)) +
+                                    np.cos(np.radians(theta_z)) * np.cos(np.radians(beta))))
+    
+    G_inc = irradiancia_global * np.cos(np.radians(theta_i))
+    return hora_solar, theta_i, G_inc
+
+def calcular_resultados(canvas,Pmed,Amp,ang):
+    # Definindo variáveis
     f = 60
     w = 2 * np.pi * f
+    t = np.linspace(0, 2 * (1/f), 200)
+
+    Vp = Amp * np.sqrt(2)
+    Ip = 2*Pmed / Vp
+
+    # Tensão e corrente
+    vt = Vp * np.cos(w * t)
+    ph = np.radians(ang)
+    it = Ip * np.cos(w * t + ph)
+
+    # Potências
+    pt = vt * it
+    pt_max = np.max(pt)
+    pt_media = np.mean(pt)
+    pt_min = np.min(pt)
+
+    # Cálculo da potência reativa
+    pa = Vp * Ip / 2 * np.cos(2 * w * t) * np.cos(ph) + Vp * Ip / 2 * np.cos(ph)
+    pr = -Vp * Ip / 2 * np.sin(2 * w * t) * np.sin(ph)
+    amplitude_tensao = np.max(np.abs(vt))
+    amplitude_corrente = np.max(np.abs(it))
+   
+
+    # Potência fotovoltaica
     L = 50e-3
-    t = np.linspace(0, 2 * 1 / f, 1000)
+    VL = -np.max(it) * (w * L) * np.sin(w * t)
+    Vfv = vt + VL
+    pfv = Vfv * (-it)
 
-    reactive_power = float(reactive_power)
-    phase_angle = float(phase_angle)
-    amplitude = float(amplitude)
+    pfv_max = np.max(pfv)
+    pfv_media = np.mean(pfv)
+    pfv_min = np.min(pfv)
+    amplitude_tensao_fotovoltaico = np.max(np.abs(Vfv))
+    amplitude_corrente_fotovoltaico = np.max(np.abs(-it))
 
-    Vr = Vp * np.cos(w * t)
-    Ip = (2 * Pm) / Vp
-    Ir = Ip * np.cos(w * t + phase_angle)
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 5))
 
-    Pt_r = Vr * Ir
-    Pa_r = (Vp * Ip / 2) * np.cos(2 * w * t) * np.cos(phase_angle) + (Vp * Ip / 2) * np.cos(phase_angle)
-    Pr_r = -reactive_power * np.sin(w * t)
+    # Figura 1: Tensões e Correntes
+    # Subplot 1: Tensões e Correntes com escalas diferentes
+    ax1.plot(t * 1e3, vt, 'blue', label='Tensão [V]')
+    ax1.set_xlabel('Tempo [ms]')
+    ax1.set_ylabel('Tensão [V]', color='blue')
+    ax1.tick_params(axis='y', labelcolor='blue')
+    ax1.grid(True)
 
-    I_fv = -Ir
-    Vl = -np.max(Ip) * w * L * np.sin(w * t)
-    Vfv = Vl + Vr
-    Pt_fv = Vfv * I_fv
+    # Eixo y para a corrente (eixo da direita)
+    ax1_corrente = ax1.twinx()
+    ax1_corrente.plot(t * 1e3, it, 'orange', label='Corrente [A]')
+    ax1_corrente.set_ylabel('Corrente [A]', color='orange')
+    ax1_corrente.tick_params(axis='y', labelcolor='orange')
 
-    fig, axs = plt.subplots(2, 2, figsize=(14, 8))
+    # Legendas para ambos os eixos
+    ax1.legend(loc='upper left')
+    ax1_corrente.legend(loc='upper right')
 
-    axs[0, 0].plot(t, Vr, label="Tensão da rede (Vr)", color='blue')
-    axs[0, 0].set_ylabel("Tensão (V)")
-    axs[0, 0].set_xlabel("Tempo (s)")
-    axs[0, 0].grid(True)
-    axs[0, 0].twinx().plot(t, Ir, label="Corrente da rede (Ir)", color='red')
-    axs[0, 0].set_title("Tensão e Corrente da Rede")
-    axs[0, 0].legend(loc="upper left")
+    # Subplot 2: Potências
+    ax2.plot(t * 1e3, pa + pr, 'y', label='pa+pr (pt)')
+    ax2.plot(t * 1e3, pt, 'k', label='Pt')
+    ax2.plot(t * 1e3, pa, 'b', label='P_at')
+    ax2.plot(t * 1e3, pr, 'r', label='P_re')
+    ax2.grid(True)
+    ax2.set_xlabel('Tempo [ms]')
+    ax2.set_ylabel('Potência total, ativa e reativa')
+    ax2.legend()
 
-    axs[0, 1].plot(t, Pt_r, label="Potência total da rede (Pt_r)", color='green')
-    axs[0, 1].plot(t, Pa_r, label="Potência ativa da rede (Pa_r)", color='purple')
-    axs[0, 1].plot(t, Pr_r, label="Potência reativa (Pr_r)", color='orange')
-    axs[0, 1].set_title("Potências da Rede")
-    axs[0, 1].set_xlabel("Tempo (s)")
-    axs[0, 1].set_ylabel("Potência (W)")
-    axs[0, 1].grid(True)
-    axs[0, 1].legend(loc="upper right")
+    # Figura 3: Potência fotovoltaica
+    # Subplot 3: Tensão e corrente fotovoltaica com escalas diferentes
+    ax3.plot(t * 1e3, Vfv, 'b', label='Vfv [V]')
+    ax3.set_xlabel('Tempo [ms]')
+    ax3.set_ylabel('Tensão [V]', color='b')
+    ax3.tick_params(axis='y', labelcolor='b')
+    ax3.grid(True)
 
-    axs[1, 0].plot(t, Vfv, label="Tensão da fotovoltaica (Vfv)", color='blue')
-    axs[1, 0].set_ylabel("Tensão (V)")
-    axs[1, 0].set_xlabel("Tempo (s)")
-    axs[1, 0].grid(True)
-    axs[1, 0].twinx().plot(t, I_fv, label="Corrente da fotovoltaica (Ifv)", color='red')
-    axs[1, 0].set_title("Tensão e Corrente da Fotovoltaica")
-    axs[1, 0].legend(loc="upper left")
+    # Eixo y para a corrente (eixo da direita)
+    ax3_corrente = ax3.twinx()
+    ax3_corrente.plot(t * 1e3, -it, 'orange', label='Corrente [A]')
+    ax3_corrente.set_ylabel('Corrente [A]', color='orange')
+    ax3_corrente.tick_params(axis='y', labelcolor='orange')
 
-    axs[1, 1].plot(t, Pt_fv, label="Potência total da fotovoltaica (Pt_fv)", color='green')
-    axs[1, 1].set_title("Potências da Fotovoltaica")
-    axs[1, 1].set_xlabel("Tempo (s)")
-    axs[1, 1].set_ylabel("Potência (W)")
-    axs[1, 1].grid(True)
-    axs[1, 1].legend(loc="upper right")
+    # Legendas para ambos os eixos
+    ax3.legend(loc='upper left')
+    ax3_corrente.legend(loc='upper right')
+
+    # Subplot 4: Potência fotovoltaica
+    ax4.plot(t * 1e3, pfv, 'k', label='Pfv')
+    ax4.grid(True)
+    ax4.set_xlabel('Tempo [ms]')
+    ax4.set_ylabel('Potência fotovoltaica [W]')
+    ax4.legend()
 
     plt.tight_layout()
-    draw_figure(canvas, fig)
+    draw_figure(canvas, fig)  # Desenha a figura no Canvas
     plt.close(fig)
+    
+    return (pt_max, pt_media, pt_min, np.mean(pr), Vfv, pfv, 
+            amplitude_tensao, amplitude_corrente, pfv_max, pfv_min, pfv_media, 
+            amplitude_tensao_fotovoltaico, amplitude_corrente_fotovoltaico)
