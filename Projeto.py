@@ -1,7 +1,7 @@
 import PySimpleGUI as sg 
 import pandas as pd
 import numpy as np
-from funcao import plot_hourly_data, calculate_solar_parameters, calcular_resultados,Ns_Np
+from funcao import plot_hourly_data, calculate_solar_parameters, calcular_resultados
  
 # Carregar os dados
 url = "https://docs.google.com/spreadsheets/d/1W1V5ExxROoVLTQAdsYKVv98rweN_bEoSwFwct9DN3Ao/gviz/tq?tqx=out:csv"
