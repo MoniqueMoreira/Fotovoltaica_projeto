@@ -193,3 +193,34 @@ def calcular_resultados(canvas,Pmed,Amp,ang):
     return (pt_max, pt_media, pt_min, np.mean(pr), Vfv, pfv, 
             amplitude_tensao, amplitude_corrente, pfv_max, pfv_min, pfv_media, 
             amplitude_tensao_fotovoltaico, amplitude_corrente_fotovoltaico)
+
+
+def Corrente(I, V, Isc, Io,m, Rs, Rp, Vt, Ns,Np):
+    """
+    Calcula a corrente da célula fotovoltaica para uma dada tensão V e corrente I.
+    """
+    return -I + Np*Isc - Np*Io*(np.exp((V+((Ns/Np)*Rs*I))/(Ns*m*Vt)) - 1) - ((V + Rs*(Ns/Np)*I)/((Ns/Np)*Rp))
+
+def Derivada(I, V,Isc,Io,m, Rs, Vt, Rp,Ns,Np):
+    """
+    Calcula a derivada da função corrente em relação a I.
+    """
+    h = 1e-3
+    return (Corrente(I+h, V, Isc, Io,m, Rs, Rp, Vt, Ns,Np) - Corrente(I, V, Isc, Io,m, Rs, Rp, Vt, Ns,Np)) / h
+
+# Função Newton-Raphson para encontrar corrente I
+def newton_raphson_monique(V, Isc, Io,m, Vt, Rs, Rp,Ns, Np, tol=1e-6, max_iter=100):
+    I = 0
+    for _ in range(max_iter):
+        f_I = Corrente(I, V, Isc, Io,m, Rs, Rp, Vt, Ns, Np)
+        f_prime_I = Derivada(I, V, Isc,Io,m, Rs, Vt, Rp,Ns, Np)
+
+        if f_prime_I == 0:
+            break
+        I_new = I - f_I / f_prime_I
+
+        if abs(I_new - I) < tol:
+            return max(I_new, 0)  # Garante que I não seja negativo
+        I = I_new
+
+    raise ValueError("Newton-Raphson não convergiu")
