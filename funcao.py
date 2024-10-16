@@ -31,7 +31,7 @@ def plot_hourly_data(selected_hour, selected_minute, canvas):
         temperatura_atual = filtered_data['Temp_Cel'].iloc[selected_minute]
         irradiancia_atual = filtered_data['Radiação'].iloc[selected_minute]
 
-        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+        fig, axs = plt.subplots(1, 2, figsize=(18, 10))
 
         # Gráfico de Radiação
         axs[0].plot(filtered_data['Data_Hora'], filtered_data['Radiação'], label='Radiação')
@@ -194,33 +194,80 @@ def calcular_resultados(canvas,Pmed,Amp,ang):
             amplitude_tensao, amplitude_corrente, pfv_max, pfv_min, pfv_media, 
             amplitude_tensao_fotovoltaico, amplitude_corrente_fotovoltaico)
 
+def draw_animate(canvas, figure):
+    """Embed a Matplotlib figure inside a PySimpleGUI canvas."""
+    figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
+    figure_canvas_agg.draw()
+    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
+    return figure_canvas_agg
 
-def Corrente(I, V, Isc, Io,m, Rs, Rp, Vt, Ns,Np):
-    """
-    Calcula a corrente da célula fotovoltaica para uma dada tensão V e corrente I.
-    """
-    return -I + Np*Isc - Np*Io*(np.exp((V+((Ns/Np)*Rs*I))/(Ns*m*Vt)) - 1) - ((V + Rs*(Ns/Np)*I)/((Ns/Np)*Rp))
+# Função para criar a placa solar
+def create_panel():
+    return np.array([[1, -1, 0], [1, 1, 0], [-1, 1, 0], [-1, -1, 0]])
 
-def Derivada(I, V,Isc,Io,m, Rs, Vt, Rp,Ns,Np):
-    """
-    Calcula a derivada da função corrente em relação a I.
-    """
-    h = 1e-3
-    return (Corrente(I+h, V, Isc, Io,m, Rs, Rp, Vt, Ns,Np) - Corrente(I, V, Isc, Io,m, Rs, Rp, Vt, Ns,Np)) / h
+# Função para rotacionar a placa
+def rotate_panel(panel, angle_z, angle_x):
+    theta_z = np.radians(-angle_z)
+    rotation_matrix_z = np.array([
+        [np.cos(theta_z), -np.sin(theta_z), 0],
+        [np.sin(theta_z), np.cos(theta_z), 0],
+        [0, 0, 1]
+    ])
 
-# Função Newton-Raphson para encontrar corrente I
-def newton_raphson_monique(V, Isc, Io,m, Vt, Rs, Rp,Ns, Np, tol=1e-6, max_iter=100):
-    I = 0
-    for _ in range(max_iter):
-        f_I = Corrente(I, V, Isc, Io,m, Rs, Rp, Vt, Ns, Np)
-        f_prime_I = Derivada(I, V, Isc,Io,m, Rs, Vt, Rp,Ns, Np)
+    theta_x = np.radians(angle_x)
+    rotation_matrix_x = np.array([
+        [1, 0, 0],
+        [0, np.cos(theta_x), -np.sin(theta_x)],
+        [0, np.sin(theta_x), np.cos(theta_x)]
+    ])
 
-        if f_prime_I == 0:
-            break
-        I_new = I - f_I / f_prime_I
+    rotated_panel = panel @ rotation_matrix_z.T
+    rotated_panel = rotated_panel @ rotation_matrix_x.T
 
-        if abs(I_new - I) < tol:
-            return max(I_new, 0)  # Garante que I não seja negativo
-        I = I_new
+    return rotated_panel
 
-    raise ValueError("Newton-Raphson não convergiu")
+# Variável global para a animação
+ani = None  # Inicializada como None
+
+def animate(i, angle_x, angle_z, panel, frames, ax, step):
+    ax.cla()  # Limpa o gráfico apenas durante a animação
+
+    # Definindo ângulos atuais com base no progresso
+    current_angle_x = angle_x * (i / frames)
+    current_angle_z = angle_z * (i / frames)
+
+    # Se atingir o último frame, não limpar mais e parar a animação
+    if i >= frames:
+        current_angle_x = angle_x
+        current_angle_z = angle_z
+        if ani:  # Parar a animação se `ani` estiver disponível
+            ani.event_source.stop()
+
+    # Rotaciona a placa solar
+    rotated_panel = rotate_panel(panel, current_angle_z, current_angle_x)
+
+    # Desenhar a placa solar
+    if np.all(np.isfinite(rotated_panel)):
+        ax.plot_trisurf(rotated_panel[:, 0], rotated_panel[:, 1], rotated_panel[:, 2], color='gray', alpha=0.7)
+
+    # Desenhar vértices e rótulos
+    for idx, (x, y, z) in enumerate(rotated_panel):
+        ax.scatter(x, y, z, color='black', s=25)
+        ax.text(x, y, z, str(idx + 1), color='black', fontsize=12, ha='center')
+
+    # Desenhar os eixos
+    ax.quiver(0, 0, 0, 2, 0, 0, color='blue', arrow_length_ratio=0.1)
+    ax.quiver(0, 0, 0, 0, 2, 0, color='green', arrow_length_ratio=0.1)
+    ax.quiver(0, 0, 0, 0, 0, 2, color='red', arrow_length_ratio=0.1)
+
+    # Configurações do gráfico
+    ax.set_xlabel('Eixo X')
+    ax.set_ylabel('Eixo Y')
+    ax.set_zlabel('Eixo Z')
+    ax.set_xlim(-2, 2)
+    ax.set_ylim(-2, 2)
+    ax.set_zlim(-1, 2)
+    ax.set_title(f"Inclinação Z: {current_angle_z:.1f}°, X: {current_angle_x:.1f}°")
+    ax.grid(True)
+
+
