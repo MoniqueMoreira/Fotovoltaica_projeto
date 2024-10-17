@@ -1,9 +1,9 @@
 from single_diode_model import SingleDiodeModel
 import report_helper as report_helper
 from table_data import obter_dados_data_hora, calcular_angulos_irradiancia
-from curves_plot import gerar_curvas
 import numpy as np
 import  matplotlib.pyplot as plt
+import PySimpleGUI as sg
 
 def HIKU7(canvas, data_selecionada, hora_selecionada,beta, gamma_p,lat,long_local,long_meridiano):
 
@@ -23,8 +23,13 @@ def HIKU7(canvas, data_selecionada, hora_selecionada,beta, gamma_p,lat,long_loca
     # Obter dados da tabela
     #data_selecionada = "11/01/2019"  # Substituir por qualquer data de interesse
     #hora_selecionada = "12:00"  # Substituir por qualquer hora de interesse
+    
+    try:    
+        dados_hora = obter_dados_data_hora(data_selecionada, hora_selecionada)
 
-    dados_hora = obter_dados_data_hora(data_selecionada, hora_selecionada)
+    except:
+        sg.popup('Dados inseridos incorretos.', title='Erro')
+        print('Dados inseridos incorretos!')
 
     if dados_hora is not None:
         # Obtendo valores da planilha
@@ -38,7 +43,7 @@ def HIKU7(canvas, data_selecionada, hora_selecionada,beta, gamma_p,lat,long_loca
         
         # Exemplo de cálculos com base nos dados obtidos
         angulos_irradiancia = calcular_angulos_irradiancia(
-            data_hora_str= f'{data_selecionada +' '+ hora_selecionada}',
+            data_hora_str= f'{data_selecionada} {hora_selecionada}',
             irradiancia_global= dados_hora['Radiação'],
             beta = beta, # Inclinação do painel em relação ao plano horizontal (exemplo)
             gamma_p = gamma_p, # Angulação do painel em relação ao norte ou sul
