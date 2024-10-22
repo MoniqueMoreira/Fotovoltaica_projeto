@@ -9,7 +9,7 @@ url = "https://docs.google.com/spreadsheets/d/1W1V5ExxROoVLTQAdsYKVv98rweN_bEoSw
 try:
     # Tente carregar a partir da URL
     df = pd.read_csv(url)
-    #print(df)
+    # print(df)
 except Exception as e:
     print(f"Não foi possível carregar os dados da URL: {e}. Tentando carregar do arquivo local.")
 
@@ -17,21 +17,22 @@ except Exception as e:
 df['Data_Hora'] = pd.to_datetime(df['Data_Hora'], format='%d/%m/%y %H:%M', dayfirst=True, errors='coerce')
 
 # Convertendo colunas numéricas que estão como string (com vírgulas) para float
-colunas_numericas = ['Radiação', 'Temp_Cel', 'Temp_Amb', 'Tensao_S1_Avg', 'Corrente_S1_Avg', 
-                     'Potencia_S1_Avg', 'Tensao_S2_Avg', 'Corrente_S2_Avg', 'Potencia_S2_Avg', 
+colunas_numericas = ['Radiação', 'Temp_Cel', 'Temp_Amb', 'Tensao_S1_Avg', 'Corrente_S1_Avg',
+                     'Potencia_S1_Avg', 'Tensao_S2_Avg', 'Corrente_S2_Avg', 'Potencia_S2_Avg',
                      'Potencia_FV_Avg', 'Demanda_Avg', 'FP_FV_Avg', 'Tensao_Rede_Avg']
 
 for coluna in colunas_numericas:
     df[coluna] = df[coluna].astype(str).str.replace(',', '.').astype(float)
 
+
 # Função para obter dados de temperatura e irradiância da planilha
 def obter_dados_data_hora(data_selecionada, hora_selecionada):
     # Converter a data e hora selecionadas para o formato datetime da coluna 'Data_Hora'
     data_hora_selecionada = pd.to_datetime(f"{data_selecionada} {hora_selecionada}", format='%d/%m/%y %H:%M')
-        
+
     # Filtrar os dados com base na data e hora selecionada
     dados_hora = df[df['Data_Hora'] == data_hora_selecionada]
-    
+
     if dados_hora.empty:
         print(f"Não há dados disponíveis para a data {data_selecionada} e hora {hora_selecionada}.")
         return None
@@ -39,16 +40,18 @@ def obter_dados_data_hora(data_selecionada, hora_selecionada):
     return dados_hora.iloc[0]
 
 
-
 # Funções para conversão de ângulos
 def deg_to_rad(deg):
     return deg * np.pi / 180
 
+
 def rad_to_deg(rad):
     return rad * 180 / np.pi
 
+
 # Função para calcular ângulos e irradiância baseada em dados
-def calcular_angulos_irradiancia(data_hora_str, irradiancia_global, beta, gamma_p, lat, long_local, long_meridiano, horario_verao=0):
+def calcular_angulos_irradiancia(data_hora_str, irradiancia_global, beta, gamma_p, lat, long_local, long_meridiano,
+                                 horario_verao=0):
     # Convertendo a string da data e hora para objeto datetime
     data_hora = datetime.strptime(data_hora_str, "%d/%m/%y %H:%M")
 
@@ -74,7 +77,8 @@ def calcular_angulos_irradiancia(data_hora_str, irradiancia_global, beta, gamma_
 
     # Calculando o ângulo zenital do sol
     theta_z = rad_to_deg(np.arccos(np.sin(deg_to_rad(lat)) * np.sin(deg_to_rad(declinacao_solar)) +
-                                   np.cos(deg_to_rad(lat)) * np.cos(deg_to_rad(declinacao_solar)) * np.cos(deg_to_rad(omega))))
+                                   np.cos(deg_to_rad(lat)) * np.cos(deg_to_rad(declinacao_solar)) * np.cos(
+        deg_to_rad(omega))))
 
     # Calculando o azimute solar
     gamma_solar = rad_to_deg(np.arctan2(np.sin(deg_to_rad(omega)),
@@ -82,8 +86,9 @@ def calcular_angulos_irradiancia(data_hora_str, irradiancia_global, beta, gamma_
                                          np.tan(deg_to_rad(declinacao_solar)) * np.cos(deg_to_rad(lat)))))
 
     # Cálculo do ângulo de incidência
-    theta_i = rad_to_deg(np.arccos(np.sin(deg_to_rad(theta_z)) * np.cos(deg_to_rad(gamma_p - gamma_solar)) * np.sin(deg_to_rad(beta)) +
-                                   np.cos(deg_to_rad(theta_z)) * np.cos(deg_to_rad(beta))))
+    theta_i = rad_to_deg(
+        np.arccos(np.sin(deg_to_rad(theta_z)) * np.cos(deg_to_rad(gamma_p - gamma_solar)) * np.sin(deg_to_rad(beta)) +
+                  np.cos(deg_to_rad(theta_z)) * np.cos(deg_to_rad(beta))))
 
     # Cálculo da irradiância incidente usando a irradiância global e o ângulo de incidência
     G_inc = irradiancia_global * np.cos(deg_to_rad(theta_i))
@@ -93,4 +98,3 @@ def calcular_angulos_irradiancia(data_hora_str, irradiancia_global, beta, gamma_
         "Ângulo de Incidência": theta_i,
         "Irradiância Incidente": G_inc
     }
-

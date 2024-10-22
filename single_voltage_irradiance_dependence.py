@@ -4,12 +4,12 @@ from scipy import optimize
 
 class SingleVoltageIrradianceDependence(object):
 
-    def __init__(self, 
-                 photo_current, 
-                 nominal_saturation_current, 
-                 shunt_resistance, 
-                 number_of_cells_in_series, 
-                 nominal_thermal_voltage, 
+    def __init__(self,
+                 photo_current,
+                 nominal_saturation_current,
+                 shunt_resistance,
+                 number_of_cells_in_series,
+                 nominal_thermal_voltage,
                  **optional_keyword_arguments):
 
         self.__photo_current = photo_current
@@ -33,19 +33,19 @@ class SingleVoltageIrradianceDependence(object):
         return self.__shunt_resistance
 
     def ns(self):
-        return self.__number_of_cells_in_series   
+        return self.__number_of_cells_in_series
 
     def vt(self):
-        return self.__nominal_thermal_voltage             
+        return self.__nominal_thermal_voltage
 
     def calculate(self, voltage_estimation):
 
-        if self.__number_of_iterations == None:
+        if self.__number_of_iterations is None:
             solution = optimize.newton(self.__function, voltage_estimation)
-          # solution = optimize.fsolve(self.__function, voltage_estimation)
+        # solution = optimize.fsolve(self.__function, voltage_estimation)
         else:
-            solution = optimize.newton(self.__function, voltage_estimation, maxiter = self.__number_of_iterations)
-          # solution = optimize.fsolve(self.__function, voltage_estimation, maxfev = self.__number_of_iterations)
+            solution = optimize.newton(self.__function, voltage_estimation, maxiter=self.__number_of_iterations)
+        # solution = optimize.fsolve(self.__function, voltage_estimation, maxfev = self.__number_of_iterations)
 
         return solution
 
@@ -56,4 +56,5 @@ class SingleVoltageIrradianceDependence(object):
         # Based on equation (23) of [1]:
         # In the form "... = 0"
         # meth.log is natural logarithm:
+
         return log((self.iph() * self.rsh() - x) / (self.io() * self.rsh())) * self.ns() * self.vt() - x

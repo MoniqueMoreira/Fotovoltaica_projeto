@@ -1,10 +1,10 @@
-import numpy as np
+import PySimpleGUI as sg
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import PySimpleGUI as sg
+
 from funcao import create_panel, animate
+
 
 def draw_animate(canvas, figure):
     """Embed a Matplotlib figure inside a PySimpleGUI canvas."""
@@ -49,13 +49,14 @@ def main():
                 angle_x = float(values['angle_x'])
 
                 if angle_z == 90 or angle_x == 90:
-                    sg.popup("Ambas as inclinações não podem ser 90 graus ao mesmo tempo. Por favor, insira novos valores.")
+                    sg.popup(
+                        "Ambas as inclinações não podem ser 90 graus ao mesmo tempo. Por favor, insira novos valores.")
                     continue
 
                 # Reiniciar a animação
                 ax.cla()  # Limpa o gráfico para a nova animação
                 ani = FuncAnimation(
-                    fig, animate, fargs=(angle_x, angle_z, panel, frames, ax, step), 
+                    fig, animate, fargs=(angle_x, angle_z, panel, frames, ax, step),
                     frames=2 * frames + 1, interval=30, repeat=False
                 )
                 figure_canvas_agg.draw()  # Atualiza a figura embutida
@@ -64,6 +65,7 @@ def main():
                 sg.popup("Por favor, insira valores válidos para os ângulos.")
 
     window.close()
+
 
 # Chamada da função principal
 main()

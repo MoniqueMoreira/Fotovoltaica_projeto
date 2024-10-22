@@ -10,16 +10,19 @@ df['Data_Hora'] = pd.to_datetime(df['Data_Hora'], format='%d/%m/%y %H:%M')
 df['Radiação'] = df['Radiação'].str.replace(',', '.').astype(float)
 df['Temp_Cel'] = df['Temp_Cel'].str.replace(',', '.').astype(float)
 
+
 # Função para desenhar o gráfico no canvas
-def draw_figure(canvas, figure):
+def draw_figure(canvas, figure, remove_last_graphics=True):
     # Remove o gráfico anterior se existir
-    for widget in canvas.winfo_children():
-        widget.destroy()
+    if remove_last_graphics:
+        for widget in canvas.winfo_children():
+            widget.destroy()
 
     figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
     figure_canvas_agg.draw()
     figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
     return figure_canvas_agg
+
 
 # Função para plotar dados da primeira funcionalidade
 def plot_hourly_data(selected_hour, selected_minute, canvas):
@@ -37,8 +40,8 @@ def plot_hourly_data(selected_hour, selected_minute, canvas):
         axs[0].plot(filtered_data['Data_Hora'], filtered_data['Radiação'], label='Radiação')
         axs[0].scatter(filtered_data['Data_Hora'].iloc[selected_minute], irradiancia_atual, color='red')
         axs[0].annotate(f"{irradiancia_atual:.2f} W/m²",
-                         xy=(filtered_data['Data_Hora'].iloc[selected_minute], irradiancia_atual),
-                         xytext=(5, 5), textcoords='offset points', fontsize=10, color='red')
+                        xy=(filtered_data['Data_Hora'].iloc[selected_minute], irradiancia_atual),
+                        xytext=(5, 5), textcoords='offset points', fontsize=10, color='red')
         axs[0].set_title('Radiação')
         axs[0].set_xlabel('Data e Hora')
         axs[0].set_ylabel('Radiação (W/m²)')
@@ -48,8 +51,8 @@ def plot_hourly_data(selected_hour, selected_minute, canvas):
         axs[1].plot(filtered_data['Data_Hora'], filtered_data['Temp_Cel'], label='Temperatura')
         axs[1].scatter(filtered_data['Data_Hora'].iloc[selected_minute], temperatura_atual, color='red')
         axs[1].annotate(f"{temperatura_atual:.2f} °C",
-                         xy=(filtered_data['Data_Hora'].iloc[selected_minute], temperatura_atual),
-                         xytext=(5, 5), textcoords='offset points', fontsize=10, color='red')
+                        xy=(filtered_data['Data_Hora'].iloc[selected_minute], temperatura_atual),
+                        xytext=(5, 5), textcoords='offset points', fontsize=10, color='red')
         axs[1].set_title('Temperatura')
         axs[1].set_xlabel('Data e Hora')
         axs[1].set_ylabel('Temperatura (°C)')
@@ -59,47 +62,52 @@ def plot_hourly_data(selected_hour, selected_minute, canvas):
         draw_figure(canvas, fig)
         plt.close(fig)
 
+
 # Funções de cálculo
 def deg_to_rad(degrees):
     return degrees * np.pi / 180
 
+
 def rad_to_deg(radians):
     return radians * 180 / np.pi
-    
+
+
 def calculate_solar_parameters(data_hora, irradiancia_global, beta, gamma_p, lat, long_local, long_meridiano):
     dia = data_hora.timetuple().tm_yday
     B = (360 / 365) * (dia - 81)
     EoT = 9.87 * np.sin(np.radians(2 * B)) - 7.53 * np.cos(np.radians(B)) - 1.5 * np.sin(np.radians(B))
     EoT /= 60
-    
+
     hora_local = data_hora.hour + data_hora.minute / 60
     hora_solar = hora_local - ((long_local - long_meridiano) / 15) + EoT
-    
+
     declinacao_solar = 23.45 * np.sin(np.radians(360 * (284 + dia) / 365))
     omega = 15 * (hora_solar - 12)
-    
+
     theta_z = np.degrees(np.arccos(np.sin(np.radians(lat)) * np.sin(np.radians(declinacao_solar)) +
-                                    np.cos(np.radians(lat)) * np.cos(np.radians(declinacao_solar)) * np.cos(np.radians(omega))))
-    
+                                   np.cos(np.radians(lat)) * np.cos(np.radians(declinacao_solar)) * np.cos(
+        np.radians(omega))))
+
     gamma_solar = np.degrees(np.arctan2(np.sin(np.radians(omega)),
                                         (np.cos(np.radians(omega)) * np.sin(np.radians(lat)) -
                                          np.tan(np.radians(declinacao_solar)) * np.cos(np.radians(lat)))))
 
+    theta_i = np.degrees(
+        np.arccos(np.sin(np.radians(theta_z)) * np.cos(np.radians(gamma_p - gamma_solar)) * np.sin(np.radians(beta)) +
+                  np.cos(np.radians(theta_z)) * np.cos(np.radians(beta))))
 
-    theta_i = np.degrees(np.arccos(np.sin(np.radians(theta_z)) * np.cos(np.radians(gamma_p - gamma_solar)) * np.sin(np.radians(beta)) +
-                                    np.cos(np.radians(theta_z)) * np.cos(np.radians(beta))))
-    
     G_inc = irradiancia_global * np.cos(np.radians(theta_i))
     return hora_solar, theta_i, G_inc
 
-def calcular_resultados(canvas,Pmed,Amp,ang):
+
+def calcular_resultados(canvas, Pmed, Amp, ang, remove_last_graphics=True):
     # Definindo variáveis
     f = 60
     w = 2 * np.pi * f
-    t = np.linspace(0, 2 * (1/f), 200)
+    t = np.linspace(0, 2 * (1 / f), 200)
 
     Vp = Amp * np.sqrt(2)
-    Ip = 2*Pmed / Vp
+    Ip = 2 * Pmed / Vp
 
     # Tensão e corrente
     vt = Vp * np.cos(w * t)
@@ -117,7 +125,6 @@ def calcular_resultados(canvas,Pmed,Amp,ang):
     pr = -Vp * Ip / 2 * np.sin(2 * w * t) * np.sin(ph)
     amplitude_tensao = np.max(np.abs(vt))
     amplitude_corrente = np.max(np.abs(it))
-   
 
     # Potência fotovoltaica
     L = 50e-3
@@ -187,12 +194,13 @@ def calcular_resultados(canvas,Pmed,Amp,ang):
     ax4.legend()
 
     plt.tight_layout()
-    draw_figure(canvas, fig)  # Desenha a figura no Canvas
+    draw_figure(canvas, fig, remove_last_graphics)  # Desenha a figura no Canvas
     plt.close(fig)
-    
-    return (pt_max, pt_media, pt_min, np.mean(pr), Vfv, pfv, 
-            amplitude_tensao, amplitude_corrente, pfv_max, pfv_min, pfv_media, 
+
+    return (pt_max, pt_media, pt_min, np.mean(pr), Vfv, pfv,
+            amplitude_tensao, amplitude_corrente, pfv_max, pfv_min, pfv_media,
             amplitude_tensao_fotovoltaico, amplitude_corrente_fotovoltaico)
+
 
 def draw_animate(canvas, figure):
     """Embed a Matplotlib figure inside a PySimpleGUI canvas."""
@@ -201,9 +209,11 @@ def draw_animate(canvas, figure):
     figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
     return figure_canvas_agg
 
+
 # Função para criar a placa solar
 def create_panel():
     return np.array([[1, -1, 0], [1, 1, 0], [-1, 1, 0], [-1, -1, 0]])
+
 
 # Função para rotacionar a placa
 def rotate_panel(panel, angle_z, angle_x):
@@ -226,8 +236,10 @@ def rotate_panel(panel, angle_z, angle_x):
 
     return rotated_panel
 
+
 # Variável global para a animação
 ani = None  # Inicializada como None
+
 
 def animate(i, angle_x, angle_z, panel, frames, ax, step):
     ax.cla()  # Limpa o gráfico apenas durante a animação
@@ -271,3 +283,21 @@ def animate(i, angle_x, angle_z, panel, frames, ax, step):
     ax.grid(True)
 
 
+def calcular_geracao_mensal(potencia_sistema, horas_sol_dia, eficiencia):
+    return potencia_sistema * horas_sol_dia * eficiencia * 30
+
+
+def calcular_gasto_sem_painel(consumo_mensal, tarifa):
+    return consumo_mensal * tarifa
+
+
+def calcular_gasto_com_painel(geracao_mensal, consumo_mensal, tarifa):
+    return (consumo_mensal - geracao_mensal) * tarifa
+
+
+def calcular_payback(custo_inicial, economia_mensal):
+    if economia_mensal > 0:
+        payback = custo_inicial / economia_mensal
+        return payback
+    else:
+        return float('inf')  # Retorna infinito se a economia mensal for 0 ou negativa
